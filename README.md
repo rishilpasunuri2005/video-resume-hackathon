@@ -4,6 +4,15 @@
 
 A comprehensive video-first hiring platform that solves the problem of traditional resumes failing to represent communication skills, confidence, personality, and practical abilities of candidates.
 
+## 🚀 Deploy
+
+**One-click deploy:** see [`DEPLOY.md`](./DEPLOY.md) for full Vercel deployment instructions.
+
+```bash
+# Quick deploy
+npx vercel --prod
+```
+
 ## 🎯 Problem Statement
 
 Traditional resumes fail to represent communication skills, confidence, personality, and practical abilities of candidates. Recruiters spend significant time screening profiles with limited context, increasing hiring effort and reducing matching quality. Candidates also struggle to differentiate themselves in competitive job markets. A video-first hiring ecosystem can improve candidate visibility and recruiter efficiency.
