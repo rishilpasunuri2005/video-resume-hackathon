@@ -166,7 +166,29 @@ function normalizeState(nextState) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    // localStorage quota exceeded — usually because of too many large videos.
+    // Strip videos from the local copy and try again so the rest of the demo keeps working.
+    if (error?.name === "QuotaExceededError" || error?.code === 22) {
+      const slim = {
+        ...state,
+        candidates: state.candidates.map(c =>
+          c.videoUrl?.startsWith("data:") ? { ...c, videoUrl: "" } : c
+        )
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
+        showToast("Storage full — videos trimmed from local cache", "error");
+      } catch {
+        // Give up on localStorage; the in-memory state is still valid for the session.
+        console.warn("Could not save state — localStorage quota exceeded");
+      }
+    } else {
+      console.warn("saveState failed:", error);
+    }
+  }
   syncStateToBackend();
 }
 
@@ -231,7 +253,13 @@ function prefillCandidateForm() {
     if (form.elements.yearsExp) form.elements.yearsExp.value = existing.yearsExp || "";
     if (form.elements.workExperience) form.elements.workExperience.value = existing.workExperience || "";
     form.elements.resumeText.value = existing.summary || "";
-    if (existing.videoUrl) renderVideoPreview(existing.videoUrl);
+    if (existing.videoUrl) {
+      renderVideoPreview(existing.videoUrl);
+      // Restore recordedVideoUrl so re-saving the form doesn't drop the video
+      recordedVideoUrl = existing.videoUrl;
+      document.getElementById("video-file-name").textContent = "Saved video ✓";
+      document.getElementById("discard-recording").disabled = false;
+    }
     document.getElementById("preview-name").textContent = existing.name;
     if (existing.kycVerified) {
       document.getElementById("preview-kyc-badge").style.display = "inline-flex";
@@ -421,9 +449,8 @@ function bindForms() {
     }
     const form = new FormData(event.currentTarget);
     const skills = parseSkills(form.get("skills"));
-    const videoInput = event.currentTarget.elements.videoFile;
     const resumeInput = event.currentTarget.elements.resumeFile;
-    const uploadedVideoUrl = videoInput.files[0] ? URL.createObjectURL(videoInput.files[0]) : "";
+    // recordedVideoUrl now holds a persistent base64 data URL (from record OR upload)
     const candidate = {
       id: crypto.randomUUID(),
       name: String(form.get("name")).trim(),
@@ -437,7 +464,7 @@ function bindForms() {
       portfolio: String(form.get("portfolio")).trim(),
       summary: generateSummary(form.get("role"), skills, form.get("resumeText")),
       stage: "Applied",
-      videoUrl: recordedVideoUrl || uploadedVideoUrl,
+      videoUrl: recordedVideoUrl || "",
       resumeFile: resumeInput.files[0]?.name || "Uploaded resume"
     };
 
@@ -491,12 +518,33 @@ function bindUploads() {
     document.getElementById("resume-file-name").textContent = resumeInput.files[0]?.name || "No file selected";
   });
 
-  videoInput.addEventListener("change", () => {
+  videoInput.addEventListener("change", async () => {
     const file = videoInput.files[0];
     document.getElementById("video-file-name").textContent = file?.name || "No file selected";
     if (!file) return;
     clearRecordedVideo();
-    renderVideoPreview(URL.createObjectURL(file));
+
+    // Show instant preview using a blob URL while encoding to base64 in background
+    const previewUrl = URL.createObjectURL(file);
+    renderVideoPreview(previewUrl);
+    document.getElementById("video-file-name").textContent = `${file.name} (encoding...)`;
+
+    try {
+      const dataUrl = await blobToDataUrl(file);
+      URL.revokeObjectURL(previewUrl);
+      if (!checkVideoSize(dataUrl, "Video file")) {
+        // Keep blob preview but don't store it persistently
+        recordedVideoUrl = "";
+        return;
+      }
+      // Store the data URL in recordedVideoUrl so the form-submit path picks it up
+      recordedVideoUrl = dataUrl;
+      renderVideoPreview(dataUrl);
+      document.getElementById("video-file-name").textContent = `${file.name} ✓`;
+    } catch {
+      // If encoding fails, keep blob URL preview as fallback (won't persist on refresh)
+      showToast("Could not encode video for persistence", "error");
+    }
   });
 
   form.addEventListener("input", () => {
@@ -634,11 +682,50 @@ function stopRecording() {
 
 function saveRecording() {
   const blob = new Blob(recordedChunks, { type: "video/webm" });
-  recordedVideoUrl = URL.createObjectURL(blob);
-  renderVideoPreview(recordedVideoUrl);
-  document.getElementById("video-file-name").textContent = "Recorded in browser";
-  document.getElementById("discard-recording").disabled = false;
-  setRecordingStatus("Recording saved locally for this demo profile.");
+
+  // Show preview immediately using a blob URL (fast, no encoding)
+  const previewUrl = URL.createObjectURL(blob);
+  renderVideoPreview(previewUrl);
+  document.getElementById("video-file-name").textContent = "Recorded in browser (encoding...)";
+
+  // Convert to a base64 data URL so it survives page refresh and works across logins
+  blobToDataUrl(blob).then(dataUrl => {
+    URL.revokeObjectURL(previewUrl);
+    if (!checkVideoSize(dataUrl, "Recording")) {
+      recordedVideoUrl = "";
+      renderEmptyVideoPreview();
+      document.getElementById("video-file-name").textContent = "Recording too large — try a shorter clip";
+      return;
+    }
+    recordedVideoUrl = dataUrl;
+    renderVideoPreview(dataUrl);
+    document.getElementById("video-file-name").textContent = "Recorded in browser ✓";
+    document.getElementById("discard-recording").disabled = false;
+    setRecordingStatus("Recording saved. It will persist after refresh.");
+  });
+}
+
+// Convert a Blob/File to a base64 data URL (persistent, can be saved in localStorage)
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Guard against blowing up localStorage (~5MB cap on most browsers)
+const MAX_VIDEO_BYTES = 4 * 1024 * 1024; // 4MB safety cap
+
+function checkVideoSize(dataUrl, label = "Video") {
+  // Approximate byte size — base64 is ~1.37x the raw bytes
+  const approxBytes = (dataUrl.length * 3) / 4;
+  if (approxBytes > MAX_VIDEO_BYTES) {
+    showToast(`${label} too large (${(approxBytes / 1024 / 1024).toFixed(1)}MB). Keep videos under 4MB.`, "error");
+    return false;
+  }
+  return true;
 }
 
 function stopCameraStream() {
@@ -648,7 +735,10 @@ function stopCameraStream() {
 }
 
 function clearRecordedVideo() {
-  if (recordedVideoUrl) URL.revokeObjectURL(recordedVideoUrl);
+  // Data URLs don't need revoking; only revoke if it's still a blob URL (during the brief encoding window)
+  if (recordedVideoUrl && recordedVideoUrl.startsWith("blob:")) {
+    URL.revokeObjectURL(recordedVideoUrl);
+  }
   recordedVideoUrl = "";
   recordedChunks = [];
   document.getElementById("discard-recording").disabled = true;
