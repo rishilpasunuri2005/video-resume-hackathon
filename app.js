@@ -209,6 +209,38 @@ function showApp() {
   document.getElementById("app-shell").style.display = "flex";
   document.getElementById("user-name-display").textContent = currentUser.name;
   document.getElementById("user-role-display").textContent = currentUser.role === "candidate" ? "Job Seeker" : "Recruiter";
+  // Pre-fill candidate form with the logged-in user's name
+  prefillCandidateForm();
+}
+
+function prefillCandidateForm() {
+  if (!currentUser) return;
+  const form = document.getElementById("candidate-form");
+  if (!form) return;
+
+  // If a profile exists for this user, load it; otherwise just set the name
+  const existing = state.candidates.find(c => c.name === currentUser.name);
+  if (existing) {
+    form.elements.name.value = existing.name;
+    form.elements.role.value = existing.role || "";
+    form.elements.experience.value = existing.experience || "Fresher";
+    form.elements.location.value = existing.location || "";
+    form.elements.skills.value = (existing.skills || []).join(", ");
+    form.elements.portfolio.value = existing.portfolio || "";
+    if (form.elements.education) form.elements.education.value = existing.education || "";
+    if (form.elements.yearsExp) form.elements.yearsExp.value = existing.yearsExp || "";
+    if (form.elements.workExperience) form.elements.workExperience.value = existing.workExperience || "";
+    form.elements.resumeText.value = existing.summary || "";
+    if (existing.videoUrl) renderVideoPreview(existing.videoUrl);
+    document.getElementById("preview-name").textContent = existing.name;
+    if (existing.kycVerified) {
+      document.getElementById("preview-kyc-badge").style.display = "inline-flex";
+    }
+  } else if (currentUser.role === "candidate") {
+    // New candidate - just set their name, clear other defaults
+    form.elements.name.value = currentUser.name;
+    document.getElementById("preview-name").textContent = currentUser.name;
+  }
 }
 
 function updateNavForRole() {
@@ -225,10 +257,16 @@ function updateNavForRole() {
     }
   });
 
-  // Hide "Add Candidate" button when logged in as candidate
+  // Hide "Add Candidate" button on dashboard — it's a recruiter action
   const addBtn = document.getElementById("add-candidate-btn");
   if (addBtn) {
-    addBtn.textContent = currentUser.role === "candidate" ? "Edit Profile" : "Add Candidate";
+    if (currentUser.role === "candidate") {
+      addBtn.textContent = "Edit My Profile";
+      addBtn.dataset.viewJump = "candidate";
+    } else {
+      addBtn.textContent = "Find Candidate";
+      addBtn.dataset.viewJump = "recruiter";
+    }
   }
 }
 
@@ -264,6 +302,8 @@ function bindAuth() {
     showApp();
     updateNavForRole();
     renderAll();
+    // Land each role on the most useful starting view
+    switchView(currentUser.role === "candidate" ? "jobs" : "dashboard");
   });
 
   // Signup
@@ -285,6 +325,9 @@ function bindAuth() {
     showApp();
     updateNavForRole();
     renderAll();
+    // Candidates start at profile builder, recruiters at recruiter workspace
+    switchView(currentUser.role === "candidate" ? "candidate" : "recruiter");
+    showToast(`Welcome to VidHire, ${user.name}!`);
   });
 
   // Logout
@@ -808,23 +851,15 @@ function applyToJob(jobId) {
   if (!currentUser || currentUser.role !== "candidate") return;
 
   let candidate = state.candidates.find(c => c.name === currentUser.name);
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!job) return;
 
-  // Create candidate profile if doesn't exist
+  // If candidate has no profile yet, prompt them to fill one out first.
+  // Auto-creating a blank profile gives them a 0% match which looks bad in the demo.
   if (!candidate) {
-    candidate = {
-      id: crypto.randomUUID(),
-      name: currentUser.name,
-      role: "Job Seeker",
-      experience: "Fresher",
-      location: "India",
-      skills: [],
-      portfolio: "",
-      summary: "New candidate profile",
-      stage: "Applied",
-      videoUrl: "",
-      resumeFile: ""
-    };
-    state.candidates.push(candidate);
+    showToast("Please complete your profile first", "error");
+    switchView("candidate");
+    return;
   }
 
   // Don't double-apply
@@ -845,10 +880,10 @@ function applyToJob(jobId) {
   renderJobs();
   renderApplications();
   renderPipeline();
-  showToast(`Applied to ${state.jobs.find(j => j.id === jobId)?.title || "job"} ✓`);
+  renderNavBadges();
+  showToast(`Applied to ${job.title} ✓`);
 
-  const job = state.jobs.find(j => j.id === jobId);
-  if (job) createConversation(candidate.id, job);
+  createConversation(candidate.id, job);
 }
 
 function makeConvId(candidateId, jobId) {
@@ -1194,9 +1229,16 @@ function renderPipeline() {
 
       const nextButton = document.createElement("button");
       nextButton.className = "ghost-button small";
+      nextButton.type = "button";
       nextButton.textContent = stage === "Offer" ? "✓ Offer Extended" : "Move Next →";
       nextButton.disabled = stage === "Offer";
-      nextButton.addEventListener("click", () => moveCandidate(candidate.id, nextStage(stage)));
+      // Stop drag from triggering when clicking the button
+      nextButton.addEventListener("mousedown", (e) => e.stopPropagation());
+      nextButton.draggable = false;
+      nextButton.addEventListener("click", (e) => {
+        e.stopPropagation();
+        moveCandidate(candidate.id, nextStage(stage));
+      });
       card.appendChild(nextButton);
       column.appendChild(card);
     });
@@ -1206,18 +1248,37 @@ function renderPipeline() {
 }
 
 function renderInterviews() {
-  const target = document.getElementById("interview-list");
+  // Recruiter: full pipeline list
+  renderInterviewListInto(
+    document.getElementById("interview-list"),
+    state.interviews,
+    "Open a candidate profile and click Schedule Interview."
+  );
+
+  // Candidate: only their own interviews
+  const candidateList = document.getElementById("candidate-interview-list");
+  if (candidateList && currentUser?.role === "candidate") {
+    const me = state.candidates.find(c => c.name === currentUser.name);
+    const mine = me ? state.interviews.filter(i => i.candidateId === me.id) : [];
+    renderInterviewListInto(candidateList, mine, "No interviews scheduled yet. Recruiters will book a slot when they shortlist you.");
+  } else if (candidateList) {
+    candidateList.innerHTML = "";
+  }
+}
+
+function renderInterviewListInto(target, interviews, emptyMessage) {
+  if (!target) return;
   target.innerHTML = "";
 
-  if (!state.interviews.length) {
+  if (!interviews.length) {
     const empty = document.createElement("article");
     empty.className = "interview-card";
-    empty.innerHTML = "<strong>No interviews scheduled</strong><p>Open a candidate profile and click Schedule Interview.</p>";
+    empty.innerHTML = `<strong>No interviews scheduled</strong><p>${emptyMessage}</p>`;
     target.appendChild(empty);
     return;
   }
 
-  state.interviews.forEach((interview) => {
+  interviews.forEach((interview) => {
     const card = document.createElement("article");
     card.className = "interview-card-enhanced";
 
@@ -1228,7 +1289,7 @@ function renderInterviews() {
       <p>${interview.jobTitle}</p>
       <p>📅 ${formatInterviewTime(interview.scheduledAt)}</p>
       <div class="calendar-actions">
-        <button class="primary-button small" data-action="join" style="background:linear-gradient(135deg,var(--danger),var(--violet));color:#fff;">🎥 Join Video Call</button>
+        <button class="primary-button small" type="button" data-action="join" style="background:linear-gradient(135deg,var(--danger),var(--violet));color:#fff;">🎥 Join Video Call</button>
         <a class="calendar-link" href="${gcalLink}" target="_blank" rel="noopener">📆 Google Calendar</a>
         <button class="calendar-link" type="button" data-action="ical">⬇ Download .ics</button>
       </div>
@@ -1300,14 +1361,21 @@ async function startVirtualInterview(interview) {
   const candidate = state.candidates.find(c => c.id === interview.candidateId);
   const isRecruiter = currentUser?.role === "recruiter";
   const remoteName = isRecruiter ? candidate?.name : interview.jobTitle;
-  document.getElementById("remote-name").textContent = remoteName || "Other participant";
   document.getElementById("remote-label").textContent = remoteName || "Remote";
-  document.getElementById("remote-avatar").textContent = (remoteName || "?")
-    .split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
-  // If candidate has a recorded video, play it as the "remote" feed for the recruiter
+  // Reset the remote tile to its default placeholder structure
+  const remoteTile = document.getElementById("remote-video-tile");
+  remoteTile.innerHTML = `
+    <div class="remote-placeholder">
+      <div class="avatar-large">${(remoteName || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}</div>
+      <p>${remoteName || "Other participant"}</p>
+      <small style="color:var(--muted);">Demo mode: simulated remote participant</small>
+    </div>
+    <span class="video-tile-label">${remoteName || "Remote"}</span>
+  `;
+
+  // If recruiter and candidate has a recorded video, play it as the remote feed
   if (isRecruiter && candidate?.videoUrl) {
-    const remoteTile = document.getElementById("remote-video-tile");
     remoteTile.innerHTML = `
       <video autoplay loop playsinline src="${candidate.videoUrl}"></video>
       <span class="video-tile-label">${remoteName}</span>
@@ -1329,6 +1397,7 @@ async function startVirtualInterview(interview) {
   // Start timer
   interviewStartTime = Date.now();
   document.getElementById("interview-timer").textContent = "00:00";
+  clearInterval(interviewTimerHandle);
   interviewTimerHandle = setInterval(updateInterviewTimer, 1000);
 
   dialog.showModal();
