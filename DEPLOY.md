@@ -88,7 +88,32 @@ After deploying:
 
 ## Environment Variables
 
-None required for the demo. For future production with real APIs:
-- `KV_URL` — for Vercel KV
-- `OPENAI_API_KEY` — if you replace the AI matching with GPT
-- `CLOUDINARY_URL` — if you add real video storage
+For real AI-powered matching with Groq, set this in **Vercel Project Settings → Environment Variables**:
+
+```
+GROQ_API_KEY=gsk_your_key_here
+```
+
+**How to get a free Groq API key:**
+1. Sign up at [console.groq.com](https://console.groq.com)
+2. Go to [console.groq.com/keys](https://console.groq.com/keys)
+3. Click "Create API Key" → copy the `gsk_...` value
+4. Paste it into Vercel → redeploy
+
+**Without the key**, the app uses its built-in heuristic scoring, so it still works. With the key, the recruiter's "View Profile" dialog gets real LLM-powered match scores, candidate strengths/concerns, and tailored interview questions.
+
+## Local development with Groq
+
+Create a `.env` file (already gitignored):
+```
+GROQ_API_KEY=gsk_your_key_here
+```
+
+Then run:
+```bash
+# Windows PowerShell
+$env:GROQ_API_KEY="gsk_your_key_here"; npm start
+
+# macOS/Linux
+GROQ_API_KEY=gsk_your_key_here npm start
+```

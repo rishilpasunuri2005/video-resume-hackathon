@@ -214,7 +214,106 @@ async function handleApi(request, response, url) {
     return;
   }
 
+  if (request.method === "POST" && url.pathname === "/api/ai-match") {
+    await handleAiMatch(request, response);
+    return;
+  }
+
   sendJson(response, 404, { error: "Not found" });
+}
+
+async function handleAiMatch(request, response) {
+  try {
+    const body = await readJsonBody(request);
+    const { candidate, job } = body;
+    if (!candidate || !job) {
+      sendJson(response, 400, { error: "Missing candidate or job" });
+      return;
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      sendJson(response, 200, { ok: false, provider: "fallback", reason: "GROQ_API_KEY not configured" });
+      return;
+    }
+
+    const prompt = [
+      `Job Title: ${job.title}`,
+      `Company: ${job.company}`,
+      `Required Skills: ${(job.skills || []).join(", ")}`,
+      `Job Description: ${job.description || "—"}`,
+      "",
+      `Candidate Name: ${candidate.name}`,
+      `Candidate Role: ${candidate.role}`,
+      `Experience: ${candidate.experience}`,
+      `Location: ${candidate.location || "—"}`,
+      `Skills: ${(candidate.skills || []).join(", ")}`,
+      `Education: ${candidate.education || "—"}`,
+      `Work Experience: ${candidate.workExperience || "—"}`,
+      `Resume Summary: ${candidate.summary || "—"}`,
+      `Has Video Resume: ${candidate.videoUrl ? "Yes" : "No"}`,
+      `Identity Verified (KYC): ${candidate.kycVerified ? "Yes" : "No"}`,
+      "",
+      "Score the candidate-job fit 0-100 considering skill match, experience level, profile completeness, and likely culture fit. Return only the JSON object."
+    ].join("\n");
+
+    const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.3,
+        max_tokens: 600,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a senior tech recruiter assistant. You analyze candidate-to-job fit and respond ONLY with valid JSON matching this schema exactly: " +
+              '{"score": <integer 0-100>, "summary": "<2-sentence fit summary>", "strengths": ["string", ...], "concerns": ["string", ...], "questions": ["string", "string", "string"]}. ' +
+              "Be honest, specific, and reference actual skills from the candidate."
+          },
+          { role: "user", content: prompt }
+        ]
+      })
+    });
+
+    if (!groqResponse.ok) {
+      const errorText = await groqResponse.text();
+      sendJson(response, 200, { ok: false, provider: "fallback", reason: `Groq API error ${groqResponse.status}: ${errorText.slice(0, 200)}` });
+      return;
+    }
+
+    const groqData = await groqResponse.json();
+    const content = groqData.choices?.[0]?.message?.content || "{}";
+
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      sendJson(response, 200, { ok: false, provider: "fallback", reason: "AI returned malformed JSON" });
+      return;
+    }
+
+    const clamp = v => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return 50;
+      return Math.max(0, Math.min(100, Math.round(n)));
+    };
+
+    sendJson(response, 200, {
+      ok: true,
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      score: clamp(parsed.score),
+      summary: String(parsed.summary || "").slice(0, 500),
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 5) : [],
+      concerns: Array.isArray(parsed.concerns) ? parsed.concerns.slice(0, 5) : [],
+      questions: Array.isArray(parsed.questions) ? parsed.questions.slice(0, 5) : []
+    });
+  } catch (error) {
+    sendJson(response, 200, { ok: false, provider: "fallback", reason: error.message });
+  }
 }
 
 async function serveStatic(response, pathname) {

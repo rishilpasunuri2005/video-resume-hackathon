@@ -1466,7 +1466,7 @@ function openCandidateDialog(candidate) {
   renderTags(document.getElementById("dialog-tags"), candidate.skills);
   renderDialogVideo(candidate);
 
-  // Score bar
+  // Score bar (local heuristic — gets replaced by Groq if available)
   document.getElementById("dialog-score-label").textContent = `${score}%`;
   document.getElementById("dialog-score-fill").style.width = `${score}%`;
 
@@ -1494,11 +1494,21 @@ function openCandidateDialog(candidate) {
     document.getElementById("dialog-summary").textContent += ` | ${extras}`;
   }
 
-  const questions = [
+  // Default questions (local) — replaced by Groq if available
+  const defaultQuestions = [
     `Walk me through a recent ${candidate.role.toLowerCase()} project and the tradeoffs you made.`,
     `Which part of ${job.title} maps best to your experience with ${candidate.skills.slice(0, 2).join(" and ")}?`,
     "How do you communicate blockers when working with cross-functional teams?"
   ];
+  renderDialogQuestions(defaultQuestions);
+
+  document.getElementById("profile-dialog").showModal();
+
+  // Try real AI in the background — upgrades the dialog when it returns
+  enrichDialogWithGroq(candidate, job);
+}
+
+function renderDialogQuestions(questions) {
   const list = document.getElementById("dialog-questions");
   list.innerHTML = "";
   questions.forEach(q => {
@@ -1506,8 +1516,52 @@ function openCandidateDialog(candidate) {
     item.textContent = q;
     list.appendChild(item);
   });
+}
 
-  document.getElementById("profile-dialog").showModal();
+async function enrichDialogWithGroq(candidate, job) {
+  const summaryEl = document.getElementById("dialog-summary");
+  const scoreLabel = document.getElementById("dialog-score-label");
+
+  // Show a subtle loading hint
+  scoreLabel.textContent = `${scoreLabel.textContent} ⚡`;
+
+  try {
+    const response = await fetch("/api/ai-match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidate, job })
+    });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    if (!data.ok) {
+      // Silent fallback — keep local heuristic display
+      scoreLabel.textContent = scoreLabel.textContent.replace(" ⚡", "");
+      return;
+    }
+
+    // Only upgrade if the dialog is still open on the same candidate
+    if (activeDialogCandidateId !== candidate.id) return;
+
+    // Update score
+    document.getElementById("dialog-score-label").textContent = `${data.score}% (Groq AI)`;
+    document.getElementById("dialog-score-fill").style.width = `${data.score}%`;
+
+    // Update summary with strengths and concerns
+    const lines = [data.summary];
+    if (data.strengths?.length) lines.push(`Strengths: ${data.strengths.join(", ")}.`);
+    if (data.concerns?.length) lines.push(`Concerns: ${data.concerns.join(", ")}.`);
+    summaryEl.textContent = lines.join(" ");
+
+    // Replace questions with AI-generated ones
+    if (data.questions?.length) renderDialogQuestions(data.questions);
+
+    showToast("⚡ Groq AI analysis loaded");
+  } catch (error) {
+    // Silent fail — local heuristic stays as the fallback
+    scoreLabel.textContent = scoreLabel.textContent.replace(" ⚡", "");
+  }
 }
 
 function scheduleInterview(candidateId) {
