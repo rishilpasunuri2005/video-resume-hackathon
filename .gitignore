@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+.env
+.env.local
+.vscode/
+.idea/
+
+# Generated demo data (regenerated on first run)
+data/db.json
+
+# Graphify output (auto-generated)
+graphify-out/

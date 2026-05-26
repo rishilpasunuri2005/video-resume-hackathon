@@ -1,0 +1,13 @@
+{
+  "name": "vidhire-video-resume-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hackathon MVP for a video-first hiring platform with a lightweight Node backend.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VidHire - Video Resume Hiring Platform</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Login Screen -->
+    <div class="login-screen" id="login-screen">
+      <div class="login-container">
+        <div class="brand-large">
+          <div class="brand-mark">VH</div>
+          <h1>VidHire</h1>
+          <p>Video-first hiring platform</p>
+        </div>
+        
+        <div class="login-tabs">
+          <button class="login-tab active" data-tab="login">Login</button>
+          <button class="login-tab" data-tab="signup">Sign Up</button>
+        </div>
+
+        <form class="login-form active" id="login-form">
+          <h2>Welcome Back</h2>
+          <label>
+            Email
+            <input type="email" name="email" required placeholder="you@example.com" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required placeholder="••••••••" />
+          </label>
+          <label class="role-selector">
+            Login as
+            <select name="role" required>
+              <option value="candidate">Candidate</option>
+              <option value="recruiter">Recruiter</option>
+            </select>
+          </label>
+          <button class="primary-button" type="submit">Login</button>
+          <p class="form-hint">Demo: Use any email/password to login</p>
+        </form>
+
+        <form class="login-form" id="signup-form">
+          <h2>Create Account</h2>
+          <label>
+            Full Name
+            <input type="text" name="name" required placeholder="John Doe" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required placeholder="you@example.com" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required placeholder="••••••••" />
+          </label>
+          <label class="role-selector">
+            I am a
+            <select name="role" required>
+              <option value="candidate">Candidate (Job Seeker)</option>
+              <option value="recruiter">Recruiter (Hiring Manager)</option>
+            </select>
+          </label>
+          <button class="primary-button" type="submit">Sign Up</button>
+          <p class="form-hint">All accounts are verified for demo purposes</p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="app-shell" id="app-shell" style="display: none;">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">VH</div>
+          <div>
+            <h1>VidHire</h1>
+            <p id="user-role-display">Video-first hiring</p>
+          </div>
+        </div>
+
+        <nav class="nav" id="main-nav">
+          <button class="nav-item active" data-view="dashboard" title="Dashboard">
+            <span class="icon">D</span>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-item" data-view="candidate" title="Candidate profile">
+            <span class="icon">C</span>
+            <span>My Profile</span>
+          </button>
+          <button class="nav-item" data-view="jobs" title="Browse jobs">
+            <span class="icon">J</span>
+            <span>Jobs</span>
+          </button>
+          <button class="nav-item" data-view="applications" title="My applications">
+            <span class="icon">A</span>
+            <span>Applications</span>
+            <span class="nav-badge" id="apps-badge" style="display:none;">0</span>
+          </button>
+          <button class="nav-item" data-view="messages" title="Messages">
+            <span class="icon">M</span>
+            <span>Messages</span>
+            <span class="nav-badge" id="msgs-badge" style="display:none;">0</span>
+          </button>
+          <button class="nav-item" data-view="recruiter" title="Recruiter workspace">
+            <span class="icon">R</span>
+            <span>Recruiter</span>
+          </button>
+          <button class="nav-item" data-view="pipeline" title="Hiring pipeline">
+            <span class="icon">P</span>
+            <span>Pipeline</span>
+          </button>
+          <button class="nav-item" data-view="graph" title="Project graph">
+            <span class="icon">G</span>
+            <span>Graph</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <p class="eyebrow" id="user-name-display">User</p>
+          <button class="ghost-button small" id="logout-btn">Logout</button>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Code #03</p>
+            <h2 id="view-title">Hiring Control Room</h2>
+          </div>
+          <div class="topbar-actions">
+            <button class="ghost-button" id="reset-demo" title="Reset demo data">Reset</button>
+            <button class="primary-button" data-view-jump="candidate" id="add-candidate-btn">Add Candidate</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboard-view">
+          <div class="metrics-grid">
+            <article class="metric">
+              <span>Candidates</span>
+              <strong id="metric-candidates">0</strong>
+              <small>Video profiles ready</small>
+            </article>
+            <article class="metric">
+              <span>Open jobs</span>
+              <strong id="metric-jobs">0</strong>
+              <small>Recruiter searches</small>
+            </article>
+            <article class="metric">
+              <span>Avg match</span>
+              <strong id="metric-match">0%</strong>
+              <small>AI shortlist quality</small>
+            </article>
+            <article class="metric">
+              <span>Interviews</span>
+              <strong id="metric-interviews">0</strong>
+              <small>Scheduled screens</small>
+            </article>
+          </div>
+
+          <div class="split-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Shortlist</p>
+                  <h3>Top Matches</h3>
+                </div>
+                <button class="ghost-button" data-view-jump="recruiter">Review</button>
+              </div>
+              <div id="top-matches" class="candidate-list"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Value Proof</p>
+                  <h3>Demo Narrative</h3>
+                </div>
+              </div>
+              <div class="story-list">
+                <div>
+                  <strong>1. Sign up → Build your video profile</strong>
+                  <p>Candidates register, complete KYC identity verification, upload or record a 60-second video pitch, and submit with skills and resume.</p>
+                </div>
+                <div>
+                  <strong>2. Discover jobs → Apply in one click</strong>
+                  <p>Browse open positions, see required skills, apply instantly. A recruiter conversation is auto-created with a welcome message.</p>
+                </div>
+                <div>
+                  <strong>3. AI ranks candidates for recruiters</strong>
+                  <p>6-factor AI scoring: skill match, semantic fit, experience level, video presence, profile completeness, KYC status.</p>
+                </div>
+                <div>
+                  <strong>4. Drag pipeline → Schedule → Chat</strong>
+                  <p>Drag candidates across Applied → Shortlisted → Interview → Offer. Schedule interviews with Google Calendar & .ics export. Message candidates directly.</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="candidate-view">
+          <div class="form-layout">
+            <form class="panel form-panel" id="candidate-form">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Candidate Flow</p>
+                  <h3>Create Video Profile</h3>
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <label>
+                  Full name
+                  <input name="name" required value="Aarav Mehta" />
+                </label>
+                <label>
+                  Target role
+                  <input name="role" required value="Frontend Developer" />
+                </label>
+                <label>
+                  Experience
+                  <select name="experience">
+                    <option>Fresher</option>
+                    <option selected>1-2 years</option>
+                    <option>3-5 years</option>
+                    <option>5+ years</option>
+                  </select>
+                </label>
+                <label>
+                  Location
+                  <input name="location" value="Bengaluru, India" />
+                </label>
+              </div>
+
+              <label>
+                Skills
+                <input name="skills" value="React, TypeScript, Tailwind, APIs, UI Design" />
+              </label>
+
+              <label>
+                Portfolio links
+                <input name="portfolio" value="github.com/aarav, aarav.dev" />
+              </label>
+
+              <div class="field-grid">
+                <label>
+                  Education
+                  <input name="education" value="B.Tech Computer Science" />
+                </label>
+                <label>
+                  Years of Experience
+                  <input name="yearsExp" type="number" value="2" />
+                </label>
+              </div>
+
+              <label>
+                Work Experience
+                <textarea name="workExperience" rows="3">Frontend Developer at TechCorp (2023-Present): Built dashboards and integrated APIs.</textarea>
+              </label>
+
+              <label>
+                <span class="field-label-row">
+                  Resume summary
+                  <button class="ghost-button small inline-action" type="button" id="parse-resume">Parse Skills</button>
+                </span>
+                <textarea name="resumeText" rows="5">Built responsive dashboards, integrated REST APIs, improved frontend performance, and worked with product teams to ship accessible user interfaces.</textarea>
+              </label>
+
+              <div class="upload-row">
+                <label class="upload-box">
+                  <span>Resume PDF</span>
+                  <input type="file" name="resumeFile" accept=".pdf,.doc,.docx" />
+                  <small id="resume-file-name">No file selected</small>
+                </label>
+                <label class="upload-box">
+                  <span>Video resume</span>
+                  <input type="file" name="videoFile" accept="video/*" />
+                  <small id="video-file-name">No file selected</small>
+                </label>
+              </div>
+
+              <div class="record-panel">
+                <div class="record-panel-top">
+                  <div>
+                    <p class="eyebrow">Video Recorder</p>
+                    <strong>Record a 30–60 second pitch</strong>
+                  </div>
+                  <div class="record-actions">
+                    <button class="ghost-button small" type="button" id="start-recording">⏺ Record</button>
+                    <button class="ghost-button small" type="button" id="stop-recording" disabled>⏹ Stop</button>
+                    <button class="ghost-button small" type="button" id="discard-recording" disabled>✕ Discard</button>
+                  </div>
+                </div>
+                <div id="recording-live-indicator" style="display:none; margin-top:8px;">
+                  <span class="recording-live"><span class="recording-dot"></span> LIVE — recording in progress</span>
+                </div>
+                <small id="recording-status" style="display:block; margin-top:6px;">Camera recording is optional; uploaded video also works.</small>
+              </div>
+
+              <button class="primary-button" type="submit">Generate Candidate Profile</button>
+
+              <!-- KYC Verification -->
+              <div class="kyc-panel">
+                <p class="eyebrow">Identity Verification</p>
+                <strong style="display:block;margin-top:4px;">KYC Status: <span id="kyc-status-label">Not Verified</span></strong>
+                <div class="kyc-steps" id="kyc-steps">
+                  <div class="kyc-step active" id="kyc-step-1">
+                    <div class="kyc-step-num">1</div>
+                    <div class="kyc-step-info">
+                      <strong>Upload Government ID</strong>
+                      <p>Aadhaar, PAN, Passport, or Driving License</p>
+                    </div>
+                    <label class="ghost-button small kyc-step-action" style="cursor:pointer; margin:0;">
+                      Upload
+                      <input type="file" id="kyc-id-upload" accept="image/*,.pdf" style="display:none;" />
+                    </label>
+                  </div>
+                  <div class="kyc-step" id="kyc-step-2">
+                    <div class="kyc-step-num">2</div>
+                    <div class="kyc-step-info">
+                      <strong>Selfie Verification</strong>
+                      <p>Take a live selfie to match your ID</p>
+                    </div>
+                    <button class="ghost-button small kyc-step-action" type="button" id="kyc-selfie-btn" disabled>Capture</button>
+                  </div>
+                  <div class="kyc-step" id="kyc-step-3">
+                    <div class="kyc-step-num">3</div>
+                    <div class="kyc-step-info">
+                      <strong>AI Verification</strong>
+                      <p>Automated identity check in progress</p>
+                    </div>
+                    <span class="ghost-button small kyc-step-action" id="kyc-verify-status">Pending</span>
+                  </div>
+                </div>
+                <div id="kyc-verified-msg" style="display:none; margin-top:14px;">
+                  <span class="kyc-verified-badge">✓ Identity Verified</span>
+                  <p style="font-size:12px; margin: 6px 0 0; color: var(--muted);">Your profile will show a verified badge to recruiters</p>
+                </div>
+              </div>
+            </form>
+
+            <aside class="panel profile-preview">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Preview</p>
+                  <h3 id="preview-name">Aarav Mehta</h3>
+                </div>
+                <span class="kyc-verified-badge" id="preview-kyc-badge" style="display:none;">✓ Verified</span>
+              </div>
+              <div class="video-preview" id="video-preview">
+                <span>Video preview</span>
+              </div>
+              <div class="ai-card">
+                <p class="eyebrow">AI Summary</p>
+                <p id="preview-summary">Frontend candidate with dashboard, API, and UI delivery experience.</p>
+              </div>
+              <div class="tag-row" id="preview-tags"></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="jobs-view">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Job Discovery</p>
+                <h3>Browse Open Positions</h3>
+              </div>
+              <input class="search-input" id="job-search" placeholder="Search jobs by title or skills" />
+            </div>
+            <div id="jobs-list" class="jobs-grid"></div>
+          </div>
+        </section>
+
+        <section class="view" id="applications-view">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Application Tracking</p>
+                <h3>My Applications</h3>
+              </div>
+              <button class="ghost-button" data-view-jump="jobs">Browse Jobs</button>
+            </div>
+            <div id="applications-list" class="applications-list"></div>
+          </div>
+        </section>
+
+        <section class="view" id="messages-view">
+          <div class="split-layout messages-layout">
+            <section class="panel conversations-panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Inbox</p>
+                  <h3>Conversations</h3>
+                </div>
+              </div>
+              <div id="conversations-list" class="conversations-list"></div>
+            </section>
+
+            <section class="panel chat-panel">
+              <div class="panel-header" id="chat-header">
+                <div>
+                  <p class="eyebrow">Messages</p>
+                  <h3 id="chat-title">Select a conversation</h3>
+                </div>
+              </div>
+              <div id="chat-messages" class="chat-messages"></div>
+              <form id="chat-form" class="chat-input-form" style="display: none;">
+                <input name="message" placeholder="Type a message..." required autocomplete="off" />
+                <button class="primary-button" type="submit">Send</button>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="recruiter-view">
+          <div class="split-layout recruiter-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">Recruiter Flow</p>
+                  <h3>Post Job</h3>
+                </div>
+              </div>
+              <form id="job-form" class="job-form">
+                <label>
+                  Job title
+                  <input name="title" value="Frontend Developer Intern" required />
+                </label>
+                <label>
+                  Company
+                  <input name="company" value="NovaHire Labs" required />
+                </label>
+                <label>
+                  Required skills
+                  <input name="skills" value="React, TypeScript, APIs, Tailwind" required />
+                </label>
+                <label>
+                  Job description
+                  <textarea name="description" rows="5">Looking for a frontend developer who can build polished interfaces, consume APIs, collaborate with design, and communicate clearly.</textarea>
+                </label>
+                <button class="primary-button" type="submit">Save Job & Score Candidates</button>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div>
+                  <p class="eyebrow">AI Matchmaking</p>
+                  <h3>Candidate Search</h3>
+                </div>
+                <input class="search-input" id="candidate-search" placeholder="Search skill or role" />
+              </div>
+              <div id="candidate-results" class="candidate-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="pipeline-view">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">ATS Lite</p>
+                <h3>Hiring Pipeline</h3>
+              </div>
+              <button class="ghost-button" data-view-jump="recruiter">Find Candidates</button>
+            </div>
+            <div class="pipeline-board" id="pipeline-board"></div>
+            <div class="interview-strip">
+              <div class="panel-header compact-header">
+                <div>
+                  <p class="eyebrow">Calendar Sync Mock</p>
+                  <h3>Upcoming Interviews</h3>
+                </div>
+              </div>
+              <div id="interview-list" class="interview-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="graph-view">
+          <div class="panel">
+            <div class="panel-header">
+              <div>
+                <p class="eyebrow">Project Map</p>
+                <h3>How VidHire Works</h3>
+              </div>
+              <button class="primary-button" data-view-jump="candidate">Start Demo Flow</button>
+            </div>
+
+            <div class="graph-grid">
+              <article class="graph-node">
+                <span>1</span>
+                <h4>Candidate Profile</h4>
+                <p>Captures identity, role, experience, skills, portfolio, resume, and video pitch.</p>
+              </article>
+              <article class="graph-node">
+                <span>2</span>
+                <h4>AI Signal Layer</h4>
+                <p>Turns profile data into summaries, match scores, fit reasons, and interview questions.</p>
+              </article>
+              <article class="graph-node">
+                <span>3</span>
+                <h4>Recruiter Workspace</h4>
+                <p>Lets recruiters post jobs, search candidates, compare match quality, and review video context.</p>
+              </article>
+              <article class="graph-node">
+                <span>4</span>
+                <h4>Hiring Pipeline</h4>
+                <p>Moves candidates from Applied to Shortlisted, Interview, and Offer for an ATS-style demo.</p>
+              </article>
+            </div>
+
+            <div class="system-graph">
+              <div class="system-column">
+                <h4>Candidate Features</h4>
+                <p><strong>Authentication</strong> — role-based login/signup (candidate & recruiter)</p>
+                <p><strong>KYC</strong> — 3-step identity verification with selfie capture</p>
+                <p><strong>Video Resume</strong> — browser recording via MediaRecorder API or file upload</p>
+                <p><strong>Job Discovery</strong> — browse, search, one-click apply with auto conversation</p>
+                <p><strong>Application Tracking</strong> — live status with color-coded stages</p>
+              </div>
+              <div class="system-column">
+                <h4>Recruiter Features</h4>
+                <p><strong>AI Matching</strong> — 6-factor weighted scoring with semantic skill grouping</p>
+                <p><strong>Resume Parsing</strong> — NLP keyword extraction from resume text</p>
+                <p><strong>Kanban Pipeline</strong> — drag-and-drop across Applied → Shortlisted → Interview → Offer</p>
+                <p><strong>Calendar Sync</strong> — Google Calendar deep-link + .ics download on every interview</p>
+                <p><strong>Messaging</strong> — real-time recruiter ↔ candidate chat</p>
+              </div>
+              <div class="system-column">
+                <h4>Tech Stack</h4>
+                <p><strong>Frontend</strong> — Vanilla JS, HTML5, CSS3, MediaRecorder API, Drag & Drop API</p>
+                <p><strong>Backend</strong> — Node.js built-in HTTP server, zero dependencies</p>
+                <p><strong>Storage</strong> — JSON file (server) + localStorage (client fallback)</p>
+                <p><strong>Calendar</strong> — RFC 5545 iCal format + Google Calendar URL API</p>
+                <p><strong>AI</strong> — Multi-factor weighted algorithm with semantic skill categories</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <template id="candidate-card-template">
+      <article class="candidate-card">
+        <div class="candidate-main">
+          <div class="avatar"></div>
+          <div>
+            <h4></h4>
+            <p></p>
+          </div>
+        </div>
+        <div class="score-ring"></div>
+        <p class="candidate-summary"></p>
+        <div class="tag-row"></div>
+        <div class="card-actions">
+          <button class="ghost-button small" data-action="shortlist">Shortlist</button>
+          <button class="ghost-button small" data-action="interview">Interview</button>
+          <button class="primary-button small" data-action="view">View Profile</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="job-card-template">
+      <article class="job-card">
+        <div class="job-header">
+          <div>
+            <h4></h4>
+            <p class="company-name"></p>
+          </div>
+          <span class="status-pill"></span>
+        </div>
+        <p class="job-description"></p>
+        <div class="tag-row"></div>
+        <div class="card-actions">
+          <button class="primary-button small" data-action="apply">Apply Now</button>
+          <button class="ghost-button small" data-action="view">View Details</button>
+        </div>
+      </article>
+    </template>
+
+    <!-- Virtual Interview Room -->
+    <dialog class="profile-dialog" id="interview-room-dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">🔴 Live Interview Room</p>
+          <h3 id="interview-room-title">Interview</h3>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button small" type="button" id="toggle-mic">🎤 Mic On</button>
+          <button class="ghost-button small" type="button" id="toggle-cam">📹 Cam On</button>
+          <button class="primary-button small" type="button" id="end-call" style="background:var(--danger); color:#fff;">📞 End Call</button>
+        </div>
+      </div>
+      <div class="interview-room-grid">
+        <div class="video-tile" id="local-video-tile">
+          <video id="local-video" autoplay muted playsinline></video>
+          <span class="video-tile-label">You</span>
+        </div>
+        <div class="video-tile remote" id="remote-video-tile">
+          <div class="remote-placeholder">
+            <div class="avatar-large" id="remote-avatar">--</div>
+            <p id="remote-name">Waiting for other participant…</p>
+            <small style="color:var(--muted);">Demo mode: simulated remote participant</small>
+          </div>
+          <span class="video-tile-label" id="remote-label">Remote</span>
+        </div>
+      </div>
+      <div class="interview-room-footer">
+        <div class="interview-timer" id="interview-timer">00:00</div>
+        <p style="margin:0; font-size:12px; color: var(--muted);">Suggested questions appear in the recruiter view.</p>
+      </div>
+    </dialog>
+
+    <!-- Job Details -->
+    <dialog class="profile-dialog" id="job-details-dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow" id="job-detail-company">Company</p>
+          <h3 id="job-detail-title">Job</h3>
+        </div>
+        <div class="dialog-actions">
+          <button class="primary-button small" type="button" id="job-detail-apply">Apply Now</button>
+          <button class="ghost-button small" type="button" id="job-detail-close">Close</button>
+        </div>
+      </div>
+      <div class="ai-card">
+        <p class="eyebrow">Description</p>
+        <p id="job-detail-description"></p>
+      </div>
+      <div class="ai-card">
+        <p class="eyebrow">Required Skills</p>
+        <div class="tag-row" id="job-detail-skills"></div>
+      </div>
+      <div class="ai-card" id="job-detail-match-card">
+        <p class="eyebrow">Your Match Score</p>
+        <div class="ai-score-bar">
+          <strong id="job-detail-score">0%</strong>
+          <div class="ai-score-bar-track"><div class="ai-score-bar-fill" id="job-detail-score-fill" style="width:0%"></div></div>
+        </div>
+        <p style="font-size:13px; color:var(--muted); margin-top:8px;" id="job-detail-match-reason"></p>
+      </div>
+    </dialog>
+
+    <!-- Organization Profile -->
+    <dialog class="profile-dialog" id="org-profile-dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">Organization Profile</p>
+          <h3 id="org-name">Company</h3>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button small" type="button" id="org-close">Close</button>
+        </div>
+      </div>
+      <div class="org-detail-grid">
+        <div class="ai-card" style="text-align:center;">
+          <div class="company-logo" id="org-logo">VH</div>
+          <span class="kyc-verified-badge" style="margin-top:10px;">✓ Company Verified</span>
+        </div>
+        <div>
+          <div class="ai-card">
+            <p class="eyebrow">About</p>
+            <p id="org-about"></p>
+          </div>
+          <div class="ai-card">
+            <p class="eyebrow">Open Positions</p>
+            <div id="org-jobs-list"></div>
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="profile-dialog" id="profile-dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">Recruiter Review</p>
+          <h3 id="dialog-name">Candidate</h3>
+        </div>
+        <div class="dialog-actions">
+          <button class="ghost-button small" id="message-dialog">Message</button>
+          <button class="primary-button small" id="schedule-dialog">Schedule Interview</button>
+          <button class="ghost-button small" id="close-dialog">Close</button>
+        </div>
+      </div>
+      <div class="dialog-grid">
+        <div class="dialog-video" id="dialog-video">
+          <span>Video resume preview</span>
+        </div>
+        <div class="dialog-content">
+          <div class="ai-card">
+            <p class="eyebrow">AI Match Score</p>
+            <div class="ai-score-bar">
+              <strong id="dialog-score-label">0%</strong>
+              <div class="ai-score-bar-track"><div class="ai-score-bar-fill" id="dialog-score-fill" style="width:0%"></div></div>
+            </div>
+            <div class="ai-factors" id="dialog-ai-factors"></div>
+          </div>
+          <div class="ai-card">
+            <p class="eyebrow">AI Fit Summary</p>
+            <p id="dialog-summary"></p>
+          </div>
+          <div class="ai-card">
+            <p class="eyebrow">Suggested Interview Questions</p>
+            <ul id="dialog-questions"></ul>
+          </div>
+          <div class="tag-row" id="dialog-tags"></div>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="./app.js"></script>
+    <!-- Toast -->
+    <div id="toast" style="
+      position:fixed; bottom:28px; right:28px; z-index:9999;
+      padding:12px 20px; border-radius:10px; font-size:14px; font-weight:600;
+      background:var(--green); color:#07110e;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transform:translateY(80px); opacity:0;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      pointer-events:none;
+    "></div>
+  </body>
+</html>
